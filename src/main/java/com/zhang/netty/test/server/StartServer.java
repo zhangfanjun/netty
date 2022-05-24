@@ -23,18 +23,47 @@ import lombok.extern.slf4j.Slf4j;
 public class StartServer {
 
     private final static int PORT = 9012;
+
     public static void main(String[] args) throws InterruptedException {
-        //包含childGroup，childHandler，config
+        /**
+         * 包含childGroup，childHandler，config，继承的父类AbstractBootstrap包括了parentGroup
+         * */
         ServerBootstrap bootstrap = new ServerBootstrap();
-        //EventLoopGroup用于处理所有ServerChannel和Channel的所有事件和IO
+        /**
+         * EventLoopGroup用于处理所有ServerChannel和Channel的所有事件和IO
+         * */
         EventLoopGroup parentGroup = new NioEventLoopGroup();
         EventLoopGroup childGroup = new NioEventLoopGroup();
         try {
-            //对服务器的父事件循环组和子事件循环组，
+            /**
+             * 绑定两个事件组
+             * */
             bootstrap.group(parentGroup, childGroup)
-                    //内部调用ReflectiveChannelFactory实现对NioServerSocketChannel实例化，channelFactory是在AbstractBootstrap
+                    /**
+                     * 初始化socket
+                     * 内部调用ReflectiveChannelFactory实现对NioServerSocketChannel实例化
+                     * channelFactory是在AbstractBootstrap，也就是bootstrap的父类
+                     * */
                     .channel(NioServerSocketChannel.class)
-                    //添加处理器
+                    /**
+                     * 添加处理器
+                     * ChannelInitializer包括了Set<ChannelHandlerContext> initMap
+                     *
+                     * 这里比较有趣的事情就是使用被注册的channel去初始化其他的channel，
+                     * 等初始化结束后移除该channel
+                     * 所以SocketChannel是一个工具，
+                     *
+                     * 在bind绑定端口的时候，进行初始化和注册initAndRegister，
+                     * 通过channel = channelFactory.newChannel()得到初始化channel
+                     * init(channel)真正开始初始化，
+                     * p = channel.pipeline()得到ChannelPipeline，
+                     * p.addLast开始添加
+                     * ch.eventLoop().execute将childHandler赋值并开启一个任务setAutoRead
+                     * 所以最后在监听读取的时候将会按照下面添加的channel进行读取
+                     *
+                     * ChannelInitializer继承了ChannelInboundHandlerAdapter
+                     * 间接继承ChannelHandlerAdapter，ChannelInboundHandler，
+                     * */
                     .childHandler(new ChannelInitializer<SocketChannel>() {
                         @Override
                         protected void initChannel(SocketChannel ch) throws Exception {
