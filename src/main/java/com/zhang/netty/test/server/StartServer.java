@@ -14,7 +14,7 @@ import lombok.extern.slf4j.Slf4j;
 
 
 /**
- * 深圳金雅福控股集团有限公司
+ * channel是启动的关键，由channel实例的pipeline添加处理器
  *
  * @author zhangfanjun
  * @date 2022/5/23
@@ -40,7 +40,7 @@ public class StartServer {
              * */
             bootstrap.group(parentGroup, childGroup)
                     /**
-                     * 初始化socket
+                     * 初始化socket，定义tcp连接的实例
                      * 内部调用ReflectiveChannelFactory实现对NioServerSocketChannel实例化
                      * channelFactory是在AbstractBootstrap，也就是bootstrap的父类
                      * */
@@ -68,8 +68,25 @@ public class StartServer {
                         @Override
                         protected void initChannel(SocketChannel ch) throws Exception {
                             ChannelPipeline pipeline = ch.pipeline();
+                            /**
+                             * ByteBuf和String之间的转换
+                             *
+                             *  Decoders解密
+                             *  pipeline.addLast("frameDecoder", new {@link LineBasedFrameDecoder}(80))
+                             *  pipeline.addLast("stringDecoder", new {@link StringDecoder}(CharsetUtil.UTF_8))
+                             *
+                             *  Encoder加密
+                             *  pipeline.addLast("stringEncoder", new {@link StringEncoder}(CharsetUtil.UTF_8))
+                             *
+                             *  使用上面的加密解密后就可以直接读取字符串
+                             *   void channelRead({@link ChannelHandlerContext} ctx, String msg) {
+                             *       ch.write("Did you say '" + msg + "'?\n")
+                             *  }
+                             *
+                             * */
                             pipeline.addLast(new StringDecoder());
                             pipeline.addLast(new StringEncoder());
+                            //自定义处理器
                             pipeline.addLast(new ServerHandler1());
                         }
                     });
